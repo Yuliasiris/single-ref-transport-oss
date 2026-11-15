@@ -163,5 +163,19 @@ class TransportTests(unittest.TestCase):
         self.assertNotIn("--no-verify", self.pushes()[0])
 
 
+    def test_absent_only_binding_conflicts_when_ref_already_exists(self):
+        # README documents: expected_old=None means "create only if the ref is absent,
+        # not unrestricted force."  When the ref already holds a different OID the
+        # preflight detects preimage_mismatch and must return conflict without sending.
+        absent_only = dataclasses.replace(self.binding, expected_old=None)
+        # self.ref is already present (pushed to self.a in setUp).
+        result = common.push_once(self.git_runner, absent_only, absent_only)
+        self.assertEqual(result.state, "conflict")
+        self.assertEqual(result.reason, "preimage_mismatch")
+        self.assertEqual(result.observed_oid, self.a)
+        # No push must have been attempted.
+        self.assertEqual(self.pushes(), [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
